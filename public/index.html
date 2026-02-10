@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sidekick Chat</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="/avatars/sidekick.jpg">
+</head>
+<body>
+  <div class="chat-container">
+    <header class="chat-header">
+      <img src="/avatars/sidekick.jpg" alt="Sidekick" class="header-avatar" onerror="this.style.display='none'">
+      <div class="header-text">
+        <h1>Sidekick Chat</h1>
+        <span class="status">Direct connection • No Telegram</span>
+      </div>
+      <span class="privacy-badge">🔒</span>
+    </header>
+    
+    <div class="messages" id="messages">
+      <!-- Messages will be inserted here -->
+    </div>
+    
+    <div class="input-area">
+      <textarea id="messageInput" placeholder="Type a message..." rows="1"></textarea>
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+  
+  <script src="app.js"></script>
+</body>
+</html>

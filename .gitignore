@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+inbox/
+outbox/
+.processed
+.tmp-message.txt
+*.log
