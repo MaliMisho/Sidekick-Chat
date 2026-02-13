@@ -26,6 +26,12 @@ const OUTBOX_DIR = path.join(PROJECT_DIR, 'outbox');
 const AVATARS_DIR = process.env.AVATARS_DIR || path.join(CLAWD_DIR, 'avatars');
 const SESSION_ID = process.env.CLAWDBOT_SESSION_ID || 'sidekick-chat';
 
+// Customizable names and avatars
+const BOT_NAME = process.env.BOT_NAME || 'Sidekick';
+const BOT_AVATAR = process.env.BOT_AVATAR || '/avatars/sidekick.jpg';
+const USER_NAME = process.env.USER_NAME || 'You';
+const USER_AVATAR = process.env.USER_AVATAR || ''; // Empty = use emoji
+
 // Ensure directories exist
 [INBOX_DIR, OUTBOX_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -36,6 +42,16 @@ app.use(express.static('public'));
 
 // Serve avatars from clawd
 app.use('/avatars', express.static(AVATARS_DIR));
+
+// Config endpoint for frontend customization
+app.get('/api/config', (req, res) => {
+  res.json({
+    botName: BOT_NAME,
+    botAvatar: BOT_AVATAR,
+    userName: USER_NAME,
+    userAvatar: USER_AVATAR
+  });
+});
 
 // SSE for live updates
 let clients = [];

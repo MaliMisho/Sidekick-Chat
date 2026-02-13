@@ -2,6 +2,17 @@ const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 
+// Config - loaded from server
+let config = {
+  botName: 'Sidekick',
+  botAvatar: '/avatars/sidekick.jpg',
+  userName: 'You',
+  userAvatar: ''
+};
+
+// Track displayed messages to avoid duplicates
+const displayedMessages = new Set();
+
 // Format timestamp
 function formatTime(ts) {
   const d = new Date(ts);
@@ -14,9 +25,14 @@ function createMessageEl(msg) {
   div.className = `message ${msg.sender}`;
   div.dataset.id = msg.id;
   
-  const avatarHTML = msg.sender === 'sidekick' 
-    ? `<img src="/avatars/sidekick.jpg" class="avatar sidekick" onerror="this.textContent='🐱'">`
-    : `<div class="avatar king">👑</div>`;
+  let avatarHTML;
+  if (msg.sender === 'sidekick') {
+    avatarHTML = `<img src="${config.botAvatar}" class="avatar sidekick" onerror="this.textContent='🐱'">`;
+  } else if (config.userAvatar) {
+    avatarHTML = `<img src="${config.userAvatar}" class="avatar king" onerror="this.textContent='👑'">`;
+  } else {
+    avatarHTML = `<div class="avatar king">👑</div>`;
+  }
   
   // Simple markdown-like formatting
   let content = escapeHtml(msg.content);
@@ -41,15 +57,38 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Load config from server
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    config = await res.json();
+    
+    // Update header with bot name and avatar
+    const headerTitle = document.querySelector('.chat-header h1');
+    const headerAvatar = document.querySelector('.header-avatar');
+    const pageTitle = document.querySelector('title');
+    
+    if (headerTitle) headerTitle.textContent = `${config.botName} Chat`;
+    if (headerAvatar) headerAvatar.src = config.botAvatar;
+    if (pageTitle) pageTitle.textContent = `${config.botName} Chat`;
+  } catch (err) {
+    console.error('Failed to load config:', err);
+  }
+}
+
 // Load all messages
 async function loadMessages() {
   try {
     const res = await fetch('/api/messages');
     const messages = await res.json();
     
-    messagesDiv.innerHTML = '';
+    // Clear empty state if present
+    const emptyState = messagesDiv.querySelector('.empty-state');
+    if (emptyState && messages.length > 0) {
+      emptyState.remove();
+    }
     
-    if (messages.length === 0) {
+    if (messages.length === 0 && !messagesDiv.querySelector('.empty-state')) {
       messagesDiv.innerHTML = `
         <div class="empty-state">
           <div class="emoji">🔒</div>
@@ -60,8 +99,17 @@ async function loadMessages() {
       return;
     }
     
+    // Add only new messages
     messages.forEach(msg => {
-      messagesDiv.appendChild(createMessageEl(msg));
+      if (!displayedMessages.has(msg.id)) {
+        displayedMessages.add(msg.id);
+        
+        // Remove any pending version of this message
+        const pendingMsg = messagesDiv.querySelector(`[data-id="pending-${msg.timestamp}"]`);
+        if (pendingMsg) pendingMsg.remove();
+        
+        messagesDiv.appendChild(createMessageEl(msg));
+      }
     });
     
     scrollToBottom();
@@ -74,15 +122,37 @@ function scrollToBottom() {
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// Send message (as King)
+// Add message to UI immediately (optimistic update)
+function addMessageToUI(content, sender, timestamp) {
+  // Remove empty state if present
+  const emptyState = messagesDiv.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+  
+  const msg = {
+    id: `pending-${timestamp}`,
+    sender,
+    content,
+    timestamp
+  };
+  
+  messagesDiv.appendChild(createMessageEl(msg));
+  scrollToBottom();
+}
+
+// Send message (as user)
 async function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
+  
+  const timestamp = Date.now();
   
   messageInput.value = '';
   messageInput.style.height = 'auto';
   sendBtn.disabled = true;
   sendBtn.textContent = '...';
+  
+  // Immediately show the message in UI
+  addMessageToUI(content, 'king', timestamp);
   
   try {
     const res = await fetch('/api/send', {
@@ -95,7 +165,7 @@ async function sendMessage() {
     if (!data.success) {
       console.error('Send failed:', data.error);
     }
-    // Message + reply will appear via SSE
+    // Reply will appear via SSE
   } catch (err) {
     console.error('Send failed:', err);
   } finally {
@@ -136,5 +206,7 @@ messageInput.addEventListener('input', () => {
 });
 
 // Init
-loadMessages();
-connectSSE();
+loadConfig().then(() => {
+  loadMessages();
+  connectSSE();
+});
