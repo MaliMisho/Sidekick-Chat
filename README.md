@@ -4,7 +4,7 @@ Private chat interface for Clawdbot that bypasses Telegram/WhatsApp. Messages st
 
 ## Why?
 
-When you chat with Clawdbot via Telegram, both Telegram AND Anthropic see your messages. Sidekick Chat removes the middleman - messages go directly from your browser to Clawdbot on your local network.
+When you chat with Clawdbot via Telegram, both Telegram AND Anthropic see your messages. Sidekick Chat removes the middleman — messages go directly from your browser to Clawdbot on your local network.
 
 **What's private:**
 - ✅ Telegram/WhatsApp never sees your messages
@@ -16,9 +16,8 @@ When you chat with Clawdbot via Telegram, both Telegram AND Anthropic see your m
 
 ## Prerequisites
 
-- [Clawdbot](https://github.com/clawdbot/clawdbot) installed and configured
+- [Clawdbot](https://github.com/clawdbot/clawdbot) installed and running
 - Node.js 18+
-- A Clawdbot agent set up with API access
 
 ## Quick Start
 
@@ -27,51 +26,43 @@ When you chat with Clawdbot via Telegram, both Telegram AND Anthropic see your m
 git clone https://github.com/YOUR_USERNAME/sidekick-chat.git
 cd sidekick-chat
 
-# Install dependencies
-npm install
-
-# Configure (see Configuration below)
-cp .env.example .env
-# Edit .env with your settings
+# Run setup (installs deps, creates .env)
+./setup.sh
 
 # Start the server
 npm start
 ```
 
-Open: `http://localhost:3847` (or your machine's IP on the same network)
+Open `http://localhost:3847` in your browser.
+
+**From another device on your network:** Use your machine's local IP (shown when server starts).
 
 ## Configuration
 
-Create a `.env` file or set environment variables:
+Edit `.env` to customize:
 
 ```bash
-# Port to run on (default: 3847)
+# Port (default: 3847)
 PORT=3847
 
-# Clawdbot session ID (creates isolated chat context)
+# Clawdbot session ID - keeps this chat separate from Telegram etc.
 CLAWDBOT_SESSION_ID=sidekick-chat
 
-# Path to avatars (optional)
-AVATARS_DIR=/path/to/your/avatars
+# Clawdbot workspace directory (where SOUL.md lives)
+# Default: ~/clawd
+CLAWD_DIR=/path/to/your/clawd
 
-# Clawdbot workspace directory
-CLAWD_DIR=/path/to/your/clawdbot/workspace
+# Avatar images (optional)
+# Default: $CLAWD_DIR/avatars
+AVATARS_DIR=/path/to/avatars
 ```
 
-## Features
-
-- 💬 Clean chat UI with message bubbles
-- 🔄 Real-time updates via Server-Sent Events
-- 🔒 Messages never leave your network
-- 🎨 Dark theme
-- 📱 Works on any device on your LAN
-
-## Architecture
+## How It Works
 
 ```
 ┌─────────────┐    HTTP     ┌─────────────┐   CLI    ┌─────────────┐
-│   Browser   │ ──────────> │   Express   │ ───────> │  Clawdbot   │
-│  (your LAN) │ <────────── │   Server    │ <─────── │   Agent     │
+│   Browser   │ ──────────► │   Express   │ ───────► │  Clawdbot   │
+│  (your LAN) │ ◄────────── │   Server    │ ◄─────── │   Agent     │
 └─────────────┘    SSE      └─────────────┘          └─────────────┘
                                   │
                                   ▼
@@ -82,14 +73,42 @@ CLAWD_DIR=/path/to/your/clawdbot/workspace
                             └─────────────┘
 ```
 
-## Roadmap
+1. You type a message in the browser
+2. Server saves it to `inbox/` and calls `clawdbot agent`
+3. Clawdbot processes and replies
+4. Server saves reply to `outbox/` and streams it back via SSE
 
-- [ ] Environment-based configuration
-- [ ] Docker support
-- [ ] Custom avatars via config
-- [ ] Message encryption at rest
-- [ ] Auto-start service (launchd/systemd)
-- [ ] Mobile PWA support
+## Message Storage
+
+Messages are stored as plain text files:
+- `inbox/msg-{timestamp}.txt` — Your messages
+- `outbox/reply-{timestamp}.txt` — Sidekick's replies
+
+Files never leave your machine unless you move them.
+
+## Features
+
+- 💬 Clean chat UI with message bubbles
+- 🔄 Real-time updates via Server-Sent Events
+- 🔒 Messages never leave your network
+- 🎨 Dark theme
+- 📱 Works on any device on your LAN
+- 🐱 Custom avatars support
+
+## Troubleshooting
+
+**"clawdbot: command not found"**
+- Make sure Clawdbot is installed globally: `npm install -g clawdbot`
+- Or add it to your PATH
+
+**Messages not sending**
+- Check that Clawdbot is configured (`clawdbot status`)
+- Make sure you have an active API key
+
+**Can't access from phone/other device**
+- Make sure you're on the same network
+- Use the IP address shown when server starts, not localhost
+- Check firewall isn't blocking port 3847
 
 ## License
 
@@ -97,4 +116,4 @@ MIT
 
 ## Credits
 
-Built with [Clawdbot](https://github.com/clawdbot/clawdbot) 🦞
+Built for use with [Clawdbot](https://github.com/clawdbot/clawdbot) 🦞

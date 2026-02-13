@@ -4,15 +4,27 @@ const path = require('path');
 const { spawn, execSync } = require('child_process');
 const chokidar = require('chokidar');
 
-const app = express();
-const PORT = 3847;
+// Load .env file if present
+const envPath = path.join(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  fs.readFileSync(envPath, 'utf-8').split('\n').forEach(line => {
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2]?.replace(/^['"]|['"]$/g, '') || '';
+    }
+  });
+}
 
-// Paths - project lives on TL-RAID/TL-RAID, avatars in clawd
-const PROJECT_DIR = '/Volumes/TL-RAID/TL-RAID/Projects/sidekick-chat';
-const CLAWD_DIR = path.join(process.env.HOME, 'clawd');
+const app = express();
+const PORT = process.env.PORT || 3847;
+
+// Paths - all configurable via environment
+const PROJECT_DIR = process.env.PROJECT_DIR || process.cwd();
+const CLAWD_DIR = process.env.CLAWD_DIR || path.join(process.env.HOME, 'clawd');
 const INBOX_DIR = path.join(PROJECT_DIR, 'inbox');
 const OUTBOX_DIR = path.join(PROJECT_DIR, 'outbox');
-const AVATARS_DIR = path.join(CLAWD_DIR, 'avatars');
+const AVATARS_DIR = process.env.AVATARS_DIR || path.join(CLAWD_DIR, 'avatars');
+const SESSION_ID = process.env.CLAWDBOT_SESSION_ID || 'sidekick-chat';
 
 // Ensure directories exist
 [INBOX_DIR, OUTBOX_DIR].forEach(dir => {
@@ -79,7 +91,7 @@ async function processWithClawdbot(filepath, filename) {
     // Use clawdbot agent to process the message
     // Use a dedicated session ID for Sidekick Chat (separate from Telegram)
     const result = execSync(
-      `clawdbot agent --session-id sidekick-chat --message "$(cat '${tmpFile}')" --json --timeout 120`,
+      `clawdbot agent --session-id ${SESSION_ID} --message "$(cat '${tmpFile}')" --json --timeout 120`,
       {
         encoding: 'utf-8',
         timeout: 180000, // 3 min timeout
@@ -220,10 +232,26 @@ app.get('/api/message/:folder/:file', (req, res) => {
   res.json({ content, file: `${folder}/${file}` });
 });
 
+// Get local IP for network access
+function getLocalIP() {
+  const interfaces = require('os').networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
 app.listen(PORT, '0.0.0.0', () => {
+  const localIP = getLocalIP();
   console.log(`\n🐱 Sidekick Chat running at http://localhost:${PORT}`);
-  console.log(`   Network: http://192.168.1.204:${PORT}\n`);
-  console.log(`Inbox:  ${INBOX_DIR}`);
-  console.log(`Outbox: ${OUTBOX_DIR}`);
-  console.log(`Avatars: ${AVATARS_DIR}\n`);
+  console.log(`   Network: http://${localIP}:${PORT}\n`);
+  console.log(`Session:  ${SESSION_ID}`);
+  console.log(`Inbox:    ${INBOX_DIR}`);
+  console.log(`Outbox:   ${OUTBOX_DIR}`);
+  console.log(`Avatars:  ${AVATARS_DIR}`);
+  console.log(`Clawd:    ${CLAWD_DIR}\n`);
 });
