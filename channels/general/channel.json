@@ -1,0 +1,12 @@
+{
+  "id": "general",
+  "name": "General",
+  "description": "Main hangout, coordination",
+  "members": ["king", "veliki", "scriptkitty", "viralphreak", "vectorvandal", "bitwriter", "junktester"],
+  "created": 1740459600000,
+  "settings": {
+    "botResponseMode": "natural",
+    "maxBotsPerTurn": 10,
+    "cooldownMs": 5000
+  }
+}

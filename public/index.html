@@ -8,26 +8,85 @@
   <link rel="icon" href="/avatars/sidekick.jpg">
 </head>
 <body>
-  <div class="chat-container">
-    <header class="chat-header">
-      <img src="/avatars/sidekick.jpg" alt="Sidekick" class="header-avatar" onerror="this.style.display='none'">
-      <div class="header-text">
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
         <h1>Sidekick Chat</h1>
-        <span class="status">Direct connection • No Telegram</span>
       </div>
-      <span class="privacy-badge">🔒</span>
+      <div class="header-right">
+        <button class="mute-btn" id="muteBtn" title="Toggle bot responses (Ctrl+Shift+M)">
+          <span class="mute-icon">🔊</span>
+          <span class="mute-text">Bots Active</span>
+        </button>
+      </div>
     </header>
-    
-    <div class="messages" id="messages">
-      <!-- Messages will be inserted here -->
-    </div>
-    
-    <div class="input-area">
-      <textarea id="messageInput" placeholder="Type a message..." rows="1"></textarea>
-      <button id="sendBtn">Send</button>
+
+    <div class="main-content">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+          <h2 class="sidebar-title">CHANNELS</h2>
+          <ul class="channel-list" id="channelList">
+            <!-- Channels loaded dynamically -->
+          </ul>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-section">
+          <h2 class="sidebar-title">BOTS ONLINE</h2>
+          <ul class="bot-list" id="botList">
+            <!-- Bots loaded dynamically -->
+          </ul>
+        </div>
+      </aside>
+
+      <!-- Chat Area -->
+      <main class="chat-area">
+        <div class="channel-header" id="channelHeader">
+          <span class="channel-name">#general</span>
+          <button class="members-btn" id="membersBtn" title="Channel members">👥 Members</button>
+        </div>
+        
+        <!-- Channel Members Panel -->
+        <div class="members-panel" id="membersPanel">
+          <div class="members-panel-header">
+            <span>Channel Members</span>
+            <button class="members-close" onclick="closeMembersPanel()">×</button>
+          </div>
+          <div class="members-list" id="membersList"></div>
+          <div class="members-add">
+            <select id="addMemberSelect">
+              <option value="">Add bot to channel...</option>
+            </select>
+            <button onclick="addMemberToChannel()">Add</button>
+          </div>
+        </div>
+
+        <div class="messages" id="messages">
+          <!-- Messages inserted here -->
+        </div>
+
+        <div class="input-area">
+          <div class="input-wrapper">
+            <textarea 
+              id="messageInput" 
+              placeholder="Type a message..." 
+              rows="1"
+              autocomplete="off"
+            ></textarea>
+            <div class="mention-popup" id="mentionPopup">
+              <!-- Mention suggestions -->
+            </div>
+          </div>
+          <button id="sendBtn" title="Send message">Send</button>
+        </div>
+      </main>
     </div>
   </div>
-  
+
   <script src="app.js"></script>
 </body>
 </html>

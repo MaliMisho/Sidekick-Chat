@@ -1,0 +1,12 @@
+{
+  "id": "private",
+  "name": "Private",
+  "description": "Private 1:1 with Veliki",
+  "members": ["king", "veliki"],
+  "created": 1740459600000,
+  "settings": {
+    "botResponseMode": "natural",
+    "maxBotsPerTurn": 1,
+    "cooldownMs": 3000
+  }
+}

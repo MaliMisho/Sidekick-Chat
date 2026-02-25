@@ -1,0 +1,12 @@
+{
+  "id": "dev",
+  "name": "Development",
+  "description": "Code, bugs, and tech discussions",
+  "members": ["king", "veliki", "scriptkitty", "vectorvandal", "junktester"],
+  "created": 1740459600000,
+  "settings": {
+    "botResponseMode": "natural",
+    "maxBotsPerTurn": 10,
+    "cooldownMs": 5000
+  }
+}
