@@ -1,8 +1,19 @@
 node_modules/
 .DS_Store
+.env
+*.log
+.tmp-*
+
+# Don't commit bot tokens
+bots.json
+
+# Message history (local only)
+channels/*/messages/
+
+# Old v1 folders
 inbox/
 outbox/
 .processed
-.tmp-message.txt
-*.log
-.env
+
+# Built desktop app
+app/

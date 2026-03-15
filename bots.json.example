@@ -1,0 +1,27 @@
+{
+  "bots": [
+    {
+      "id": "assistant",
+      "name": "Assistant",
+      "avatar": "🤖",
+      "type": "local",
+      "workdir": "/path/to/your/clawd/workspace",
+      "color": "#7c3aed"
+    },
+    {
+      "id": "coder",
+      "name": "Coder Bot",
+      "avatar": "💻",
+      "type": "http",
+      "endpoint": "http://localhost:18791",
+      "token": "your-gateway-token-here",
+      "color": "#10b981"
+    }
+  ],
+  "king": {
+    "id": "king",
+    "name": "You",
+    "avatar": "👑",
+    "color": "#fbbf24"
+  }
+}
