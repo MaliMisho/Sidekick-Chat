@@ -4,11 +4,14 @@ node_modules/
 *.log
 .tmp-*
 
-# Don't commit bot tokens
+# Bot config with tokens - use bots.json.example as template
 bots.json
 
-# Message history (local only)
+# All message history (local only)
 channels/*/messages/
+
+# DM channel configs (created per-user)
+channels/dm-*/
 
 # Old v1 folders
 inbox/
