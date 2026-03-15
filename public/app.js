@@ -6,12 +6,14 @@ const elements = {
   mobileMenuBtn: document.getElementById('mobileMenuBtn'),
   muteBtn: document.getElementById('muteBtn'),
   channelList: document.getElementById('channelList'),
+  dmList: document.getElementById('dmList'),
   botList: document.getElementById('botList'),
   channelHeader: document.getElementById('channelHeader'),
   messages: document.getElementById('messages'),
   messageInput: document.getElementById('messageInput'),
   sendBtn: document.getElementById('sendBtn'),
-  mentionPopup: document.getElementById('mentionPopup')
+  mentionPopup: document.getElementById('mentionPopup'),
+  typingContainer: document.getElementById('typingContainer')
 };
 
 // State
@@ -23,7 +25,8 @@ const state = {
   displayedMessages: new Set(),
   mentionIndex: -1,
   mentionQuery: '',
-  mentionStart: -1
+  mentionStart: -1,
+  typingBots: new Map() // botId -> { botName, channel }
 };
 
 // ============ Utilities ============
@@ -89,6 +92,14 @@ async function fetchBotStatus(botId) {
 
 async function fetchMessages(channelId) {
   try {
+    // Handle DM channels - use the DM endpoint for history
+    if (channelId.startsWith('dm-')) {
+      const botId = channelId.replace('dm-', '');
+      const res = await fetch(`/api/dm/${botId}`);
+      if (!res.ok) return [];
+      return await res.json();
+    }
+    
     const res = await fetch(`/api/channels/${channelId}/messages`);
     return await res.json();
   } catch (err) {
@@ -99,6 +110,18 @@ async function fetchMessages(channelId) {
 
 async function sendMessage(channelId, content) {
   try {
+    // Handle DM channels differently - use the DM endpoint
+    if (channelId.startsWith('dm-')) {
+      const botId = channelId.replace('dm-', '');
+      const res = await fetch(`/api/dm/${botId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
+      return await res.json();
+    }
+    
+    // Regular channel message
     const res = await fetch(`/api/channels/${channelId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -136,7 +159,10 @@ async function toggleMute() {
 // ============ Render Functions ============
 
 function renderChannels() {
-  elements.channelList.innerHTML = state.channels.map(channel => `
+  // Filter out DM channels (they appear in the DM section)
+  const regularChannels = state.channels.filter(c => !c.id.startsWith('dm-') && !c.isDm);
+  
+  elements.channelList.innerHTML = regularChannels.map(channel => `
     <li class="channel-item ${channel.id === state.currentChannel?.id ? 'active' : ''}" 
         data-channel-id="${channel.id}">
       <span class="hash">#</span>
@@ -146,6 +172,36 @@ function renderChannels() {
   
   // Add click handlers
   elements.channelList.querySelectorAll('.channel-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const channelId = item.dataset.channelId;
+      switchChannel(channelId);
+      closeMobileSidebar();
+    });
+  });
+}
+
+function renderDmList() {
+  // Create DM entries for each bot
+  elements.dmList.innerHTML = state.bots.map(bot => {
+    const dmChannelId = `dm-${bot.id}`;
+    const avatarValue = bot.avatar || '🤖';
+    const isImageAvatar = avatarValue.startsWith('/') || avatarValue.startsWith('http');
+    const avatarHtml = isImageAvatar
+      ? `<img src="${avatarValue}" alt="${escapeHtml(bot.name)}" onerror="this.style.display='none'; this.parentElement.textContent='🤖';">`
+      : avatarValue;
+    
+    return `
+    <li class="dm-item ${dmChannelId === state.currentChannel?.id ? 'active' : ''}" 
+        data-channel-id="${dmChannelId}"
+        data-bot-id="${bot.id}">
+      <span class="dm-avatar" style="background: ${bot.color || 'var(--bg-light)'}">${avatarHtml}</span>
+      <span class="dm-name">${escapeHtml(bot.name)}</span>
+    </li>
+  `;
+  }).join('');
+  
+  // Add click handlers
+  elements.dmList.querySelectorAll('.dm-item').forEach(item => {
     item.addEventListener('click', () => {
       const channelId = item.dataset.channelId;
       switchChannel(channelId);
@@ -198,11 +254,30 @@ function renderMuteButton() {
 
 function renderChannelHeader() {
   if (state.currentChannel) {
-    const memberCount = state.currentChannel.members?.length || 0;
-    elements.channelHeader.innerHTML = `
-      <span class="channel-name">#${escapeHtml(state.currentChannel.name)}</span>
-      <button class="members-btn" id="membersBtn" onclick="toggleMembersPanel()" title="Channel members">👥 ${memberCount} Members</button>
-    `;
+    if (state.currentChannel.isDm) {
+      // DM channel - show bot info
+      const bot = state.bots.find(b => b.id === state.currentChannel.botId);
+      const avatarValue = bot?.avatar || '🤖';
+      const isImageAvatar = avatarValue.startsWith('/') || avatarValue.startsWith('http');
+      const avatarHtml = isImageAvatar
+        ? `<img src="${avatarValue}" alt="${escapeHtml(bot?.name || 'Bot')}" style="width: 24px; height: 24px; border-radius: 50%;">`
+        : `<span style="font-size: 18px;">${avatarValue}</span>`;
+      
+      elements.channelHeader.innerHTML = `
+        <span class="channel-name" style="display: flex; align-items: center; gap: 8px;">
+          ${avatarHtml}
+          ${escapeHtml(state.currentChannel.name)}
+        </span>
+        <span class="dm-hint" style="color: var(--text-muted); font-size: 13px;">Direct Message</span>
+      `;
+    } else {
+      // Regular channel
+      const memberCount = state.currentChannel.members?.length || 0;
+      elements.channelHeader.innerHTML = `
+        <span class="channel-name">#${escapeHtml(state.currentChannel.name)}</span>
+        <button class="members-btn" id="membersBtn" onclick="toggleMembersPanel()" title="Channel members">👥 ${memberCount} Members</button>
+      `;
+    }
   }
 }
 
@@ -290,6 +365,73 @@ function addMessage(msg) {
 
 function scrollToBottom() {
   elements.messages.scrollTop = elements.messages.scrollHeight;
+}
+
+// ============ Typing Indicators ============
+
+function showTypingIndicator(botId, botName, channel) {
+  // Only show for current channel
+  if (channel !== state.currentChannel?.id) return;
+  
+  // Already showing for this bot?
+  if (state.typingBots.has(botId)) return;
+  
+  // Track when indicator was shown (for minimum display time)
+  state.typingBots.set(botId, { botName, channel, shownAt: Date.now() });
+  
+  // Find bot info for avatar
+  const bot = state.bots.find(b => b.id === botId) || { avatar: '🤖', color: '#b5bac1' };
+  const avatarValue = bot.avatarUrl || bot.avatar || '🤖';
+  const isImageAvatar = avatarValue.startsWith('/') || avatarValue.startsWith('http');
+  const avatarHtml = isImageAvatar
+    ? `<img src="${avatarValue}" alt="${escapeHtml(botName)}">`
+    : avatarValue;
+  
+  const indicator = document.createElement('div');
+  indicator.className = 'typing-indicator';
+  indicator.dataset.botId = botId;
+  indicator.innerHTML = `
+    <div class="typing-avatar" style="background: ${bot.color || 'var(--bg-light)'}">
+      ${avatarHtml}
+    </div>
+    <div class="typing-content">
+      <span class="typing-name">${escapeHtml(botName)}</span>
+      <span>is thinking</span>
+      <div class="typing-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  `;
+  
+  elements.typingContainer.appendChild(indicator);
+}
+
+function hideTypingIndicator(botId) {
+  const typingInfo = state.typingBots.get(botId);
+  if (!typingInfo) return;
+  
+  const MIN_DISPLAY_MS = 800; // Show for at least 800ms
+  const elapsed = Date.now() - (typingInfo.shownAt || 0);
+  
+  if (elapsed < MIN_DISPLAY_MS) {
+    // Delay hiding until minimum time has passed
+    setTimeout(() => {
+      state.typingBots.delete(botId);
+      const indicator = elements.typingContainer.querySelector(`[data-bot-id="${botId}"]`);
+      if (indicator) indicator.remove();
+    }, MIN_DISPLAY_MS - elapsed);
+  } else {
+    state.typingBots.delete(botId);
+    const indicator = elements.typingContainer.querySelector(`[data-bot-id="${botId}"]`);
+    if (indicator) indicator.remove();
+  }
+}
+
+function clearTypingIndicators() {
+  state.typingBots.clear();
+  elements.typingContainer.innerHTML = '';
 }
 
 // ============ Mention Autocomplete ============
@@ -381,12 +523,31 @@ function selectCurrentMention() {
 // ============ Event Handlers ============
 
 async function switchChannel(channelId) {
-  const channel = state.channels.find(c => c.id === channelId);
+  let channel = state.channels.find(c => c.id === channelId);
+  
+  // Handle DM channels (dm-botId pattern)
+  if (!channel && channelId.startsWith('dm-')) {
+    const botId = channelId.replace('dm-', '');
+    const bot = state.bots.find(b => b.id === botId);
+    if (bot) {
+      // Create virtual channel object for DM
+      channel = {
+        id: channelId,
+        name: `DM: ${bot.name}`,
+        description: `Direct messages with ${bot.name}`,
+        isDm: true,
+        botId: botId
+      };
+    }
+  }
+  
   if (!channel) return;
   
   state.currentChannel = channel;
   renderChannels();
+  renderDmList();
   renderChannelHeader();
+  clearTypingIndicators();
   
   // Load messages for this channel
   elements.messages.innerHTML = '<div class="loading">Loading messages</div>';
@@ -402,7 +563,19 @@ async function handleSend() {
   elements.messageInput.style.height = 'auto';
   elements.sendBtn.disabled = true;
   
-  // Send and wait for SSE to show it (no optimistic update to avoid duplicates)
+  // For DMs, add optimistic update since SSE broadcast may have timing issues
+  if (state.currentChannel.isDm) {
+    const optimisticMsg = {
+      id: `temp-${Date.now()}`,
+      channel: state.currentChannel.id,
+      sender: { id: 'king', name: 'King', type: 'human' },
+      content: content,
+      timestamp: Date.now()
+    };
+    addMessage(optimisticMsg);
+  }
+  
+  // Send and wait for SSE to show it (regular channels rely on SSE)
   await sendMessage(state.currentChannel.id, content);
   
   elements.sendBtn.disabled = false;
@@ -525,6 +698,11 @@ function connectSSE() {
       if (data.channel === state.currentChannel?.id) {
         addMessage(data);
       }
+      // Hide typing indicator when bot sends a message
+      const senderId = data.senderId || data.sender?.id;
+      if (senderId) {
+        hideTypingIndicator(senderId);
+      }
     } catch (err) {
       console.error('Failed to parse SSE message:', err);
     }
@@ -550,6 +728,25 @@ function connectSSE() {
       renderMuteButton();
     } catch (err) {
       console.error('Failed to parse mute status:', err);
+    }
+  });
+  
+  eventSource.addEventListener('typing', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      console.log('Typing event received:', data, 'Current channel:', state.currentChannel?.id);
+      showTypingIndicator(data.botId, data.botName, data.channel);
+    } catch (err) {
+      console.error('Failed to parse typing event:', err);
+    }
+  });
+  
+  eventSource.addEventListener('typingStop', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      hideTypingIndicator(data.botId);
+    } catch (err) {
+      console.error('Failed to parse typingStop event:', err);
     }
   });
   
@@ -870,6 +1067,7 @@ async function init() {
   
   renderChannels();
   renderBots();
+  renderDmList();
   renderMuteButton();
   
   // Select first channel by default
@@ -891,3 +1089,4 @@ async function init() {
 
 // Start the app
 init();
+

@@ -43,12 +43,19 @@ body {
 .app-header {
   background: var(--bg-darker);
   padding: 0 16px;
+  padding-left: 80px; /* Space for macOS traffic lights */
   height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--bg-darkest);
   flex-shrink: 0;
+  -webkit-app-region: drag; /* Allow window dragging */
+}
+
+.app-header button,
+.app-header input {
+  -webkit-app-region: no-drag; /* Buttons remain clickable */
 }
 
 .header-left {
@@ -181,6 +188,58 @@ body {
   margin-right: 2px;
 }
 
+/* DM List */
+.dm-list {
+  list-style: none;
+}
+
+.dm-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 1px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--channel-inactive);
+  font-size: 14px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.dm-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.dm-item.active {
+  background: var(--bg-light);
+  color: var(--channel-active);
+}
+
+.dm-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.dm-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.dm-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Bot List */
 .bot-list {
   list-style: none;
@@ -249,18 +308,24 @@ body {
 .messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 16px 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
 }
 
 .message {
   display: flex;
   gap: 16px;
-  padding: 4px 0;
+  padding: 16px 0;
+  margin: 0 16px;
   border-radius: 4px;
   animation: messageIn 0.2s ease;
+  border-bottom: 1px solid #404249;
+}
+
+.message:last-child {
+  border-bottom: none;
 }
 
 @keyframes messageIn {
@@ -901,3 +966,92 @@ body {
   cursor: pointer;
   font-size: 13px;
 }
+
+/* Typing Indicator */
+.typing-container {
+  padding: 0 16px 8px;
+  min-height: 24px;
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.typing-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  background: var(--bg-light);
+  flex-shrink: 0;
+}
+
+.typing-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.typing-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.typing-name {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  animation: typingBounce 1.4s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+

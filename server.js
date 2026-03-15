@@ -473,6 +473,9 @@ async function processBotResponses(channelId, triggerMessage) {
   const remaining = maxBots - turn.respondedBots.size;
   
   const invocations = eligibleBots.slice(0, remaining + 2).map(async bot => {
+    // Broadcast typing indicator
+    broadcast('typing', { channel: channelId, botId: bot.id, botName: bot.name });
+    
     const context = buildBotContext(channelId, bot.id, bot.name);
     const response = await invokeBot(bot, channelId, context);
     
@@ -502,6 +505,8 @@ async function processBotResponses(channelId, triggerMessage) {
     if (response && !shouldSkip) {
       return { bot, response };
     }
+    // Bot chose not to respond, stop typing indicator
+    broadcast('typingStop', { channel: channelId, botId: bot.id });
     return null;
   });
   
@@ -780,6 +785,9 @@ app.post('/api/dm/:botId', async (req, res) => {
   };
   saveMessage(channelId, kingMessage);
   
+  // Broadcast King's message so it appears in real-time
+  broadcast('message', kingMessage);
+  
   // Build context from recent DM history
   const recentMessages = getChannelMessages(channelId, 10);
   const formattedMessages = recentMessages.map(m => {
@@ -795,6 +803,9 @@ ${formattedMessages}
 ---
 
 You are ${bot.name} in a private DM with King. Respond directly to King's message. If you have nothing to say, respond with exactly: NO_REPLY`;
+
+  // Broadcast typing indicator for DM
+  broadcast('typing', { channel: channelId, botId: bot.id, botName: bot.name });
 
   try {
     const response = await invokeBot(bot, channelId, context);
@@ -820,8 +831,13 @@ You are ${bot.name} in a private DM with King. Respond directly to King's messag
       };
       saveMessage(channelId, botMessage);
       
+      // Broadcast the message (this will stop typing indicator on frontend)
+      broadcast('message', botMessage);
+      
       res.json({ success: true, botId, response: trimmed, messageId: botMessage.id });
     } else {
+      // Bot chose not to respond, stop typing indicator
+      broadcast('typingStop', { channel: channelId, botId: bot.id });
       res.json({ success: true, botId, response: null, note: 'Bot chose not to respond' });
     }
   } catch (e) {
